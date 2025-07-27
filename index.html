@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-  <meta charset="UTF-8">
-  <title>Liste des joueurs</title>
+  <meta charset="UTF-8" />
+  <title>Gestion des joueurs</title>
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -18,29 +18,40 @@
     }
     li {
       margin: 10px 0;
-    }
-    .player-entry {
       display: flex;
       align-items: center;
-      gap: 15px;
+      gap: 10px;
     }
     .clickable-date {
       cursor: pointer;
       color: blue;
       text-decoration: underline;
+      min-width: 110px;
+    }
+    button.delete-btn {
+      background: none;
+      border: none;
+      color: red;
+      font-weight: bold;
+      cursor: pointer;
+    }
+    .expired {
+      color: gray;
+      text-decoration: line-through;
     }
   </style>
 </head>
 <body>
   <h2>Ajouter un joueur</h2>
-  <input type="text" id="playerName" placeholder="Nom du joueur">
+  <input type="text" id="playerName" placeholder="Nom du joueur" />
   <button onclick="addPlayer()">Ajouter</button>
 
   <h2>Liste des joueurs</h2>
   <ul id="playerList"></ul>
 
   <script>
-    const API_URL = 'COLLE_ICI_TA_URL_DÉPLOIEMENT'; // <- Remplace par ton URL Apps Script
+    // Remplace cette URL par l'URL de déploiement de ton Apps Script (API)
+    const API_URL = 'https://script.google.com/macros/s/TON_URL_DEPLOIEMENT/exec';
 
     const playerList = document.getElementById('playerList');
     const players = {};
@@ -55,24 +66,32 @@
       return newDate;
     }
 
+    function isExpired(date) {
+      const today = new Date();
+      return new Date(date) < today;
+    }
+
     function fetchPlayers() {
       fetch(API_URL)
-        .then(res => res.json())
-        .then(data => {
+        .then((res) => res.json())
+        .then((data) => {
           playerList.innerHTML = '';
-          data.forEach(player => {
+          data.forEach((player) => {
             players[player.name] = {
               date: new Date(player.date),
-              clicks: parseInt(player.clicks)
+              clicks: parseInt(player.clicks),
             };
             renderPlayer(player.name);
           });
+        })
+        .catch((e) => {
+          console.error('Erreur lors de la récupération des joueurs:', e);
+          playerList.innerHTML = '<li>Impossible de charger la liste des joueurs.</li>';
         });
     }
 
     function renderPlayer(name) {
       const li = document.createElement('li');
-      li.classList.add('player-entry');
 
       const nameSpan = document.createElement('span');
       nameSpan.textContent = name;
@@ -80,12 +99,20 @@
       const dateSpan = document.createElement('span');
       dateSpan.className = 'clickable-date';
       dateSpan.textContent = formatDate(players[name].date);
+
+      if (isExpired(players[name].date)) {
+        nameSpan.classList.add('expired');
+        dateSpan.classList.add('expired');
+      }
+
       dateSpan.onclick = () => {
         const newDate = addMonth(new Date());
         players[name].date = newDate;
         players[name].clicks += 1;
 
         dateSpan.textContent = formatDate(newDate);
+        nameSpan.classList.remove('expired');
+        dateSpan.classList.remove('expired');
         countSpan.textContent = `Clicks: ${players[name].clicks}`;
 
         savePlayer(name, formatDate(newDate), players[name].clicks);
@@ -94,9 +121,16 @@
       const countSpan = document.createElement('span');
       countSpan.textContent = `Clicks: ${players[name].clicks}`;
 
+      const deleteBtn = document.createElement('button');
+      deleteBtn.textContent = '🗑️';
+      deleteBtn.className = 'delete-btn';
+      deleteBtn.title = `Supprimer ${name}`;
+      deleteBtn.onclick = () => deletePlayer(name, li);
+
       li.appendChild(nameSpan);
       li.appendChild(dateSpan);
       li.appendChild(countSpan);
+      li.appendChild(deleteBtn);
 
       playerList.appendChild(li);
     }
@@ -104,13 +138,14 @@
     function addPlayer() {
       const nameInput = document.getElementById('playerName');
       const name = nameInput.value.trim();
-      if (!name || players[name]) return;
+      if (!name) return alert('Veuillez entrer un nom de joueur.');
+      if (players[name]) return alert('Ce joueur existe déjà.');
 
       const now = new Date();
       const expiration = addMonth(now);
       players[name] = {
         date: expiration,
-        clicks: 0
+        clicks: 0,
       };
 
       renderPlayer(name);
@@ -121,15 +156,4 @@
     function savePlayer(name, date, clicks) {
       fetch(API_URL, {
         method: 'POST',
-        body: JSON.stringify({ name, date, clicks }),
-        headers: {
-          'Content-Type': 'application/json'
-        }
-      });
-    }
-
-    // Charger les données à l'ouverture
-    fetchPlayers();
-  </script>
-</body>
-</html>
+        headers: { 'C
